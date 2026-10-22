@@ -51,9 +51,18 @@ docker compose up -d --build          # поднять весь стек
 - **Пароли БД** — `MYSQL_PASSWORD` / `MYSQL_ROOT_PASSWORD` меняются в самой MariaDB
   (`ALTER USER 'myapp_user'@'%' IDENTIFIED BY '...'`), а не только в `.env`: переменные
   в `.env` применяются к контейнеру только при первой инициализации базы.
-- **Ключ S3** — воспользуйтесь скриптом `./scripts/rotate-s3-key.sh`: он выпускает
-  случайный ключ, переносит права на бакет, переключает `.env`, перезапускает backend
-  и только после успешной проверки удаляет старый ключ.
+- **Ключ S3** — ротация вручную (Garage должен быть запущен):
+  ```bash
+  NEW_ID="GK$(openssl rand -hex 12)"; NEW_SECRET="$(openssl rand -hex 32)"
+  docker exec photogram_garage_s3 /garage key import -n app-key-rotated --yes "$NEW_ID" "$NEW_SECRET"
+  docker exec photogram_garage_s3 /garage bucket allow photogram-bucket --read --write --key "$NEW_ID"
+  cp .env ".env.bak.$(date +%Y%m%d%H%M%S)"
+  sed -i "s|^S3_ACCESS_KEY=.*|S3_ACCESS_KEY=$NEW_ID|; s|^S3_SECRET_KEY=.*|S3_SECRET_KEY=$NEW_SECRET|" .env
+  docker compose up -d backend
+  curl -sf -o /dev/null http://localhost:8082/api/photos/<ID>/image   # <ID> — существующее фото
+  docker exec photogram_garage_s3 /garage key delete <СТАРЫЙ_ID> --yes   # только после успешной проверки
+  docker exec photogram_garage_s3 /garage key rename "$NEW_ID" app-key  # имя app-key нужно garage-init
+  ```
 ## API
 Базовый префикс — `/api` (задан `server.servlet.context-path`).
 Без токена доступны только `GET /api/photos`, `GET /api/photos/{id}/image`,
@@ -109,7 +118,6 @@ npm run build   # сборка в dist/
 ```
 backend/    Spring Boot API (web/, service/, domain/)
 frontend/   Vue SPA (components/, views/, router/)
-scripts/    rotate-s3-key.sh — ротация ключа доступа к S3
 docker_data/   данные MariaDB и Garage (bind-mount, gitignored)
 docker-compose.yaml   весь стек: mariadb, garage, backend, frontend
 ts.txt                исходная спецификация
