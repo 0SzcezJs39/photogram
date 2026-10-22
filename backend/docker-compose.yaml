@@ -1,0 +1,75 @@
+services:
+  mariadb:
+    image: mariadb:13.0.2
+    container_name: photogram_mariadb
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is not set - add it to .env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?MYSQL_DATABASE is not set - add it to .env}
+      MYSQL_USER: ${MYSQL_USER:?MYSQL_USER is not set - add it to .env}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD is not set - add it to .env}
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./docker_data/mariadb:/var/lib/mysql
+      
+  garage:
+    image: dxflrs/garage:v2.3.0
+    container_name: photogram_garage_s3
+    network_mode: "host"
+    restart: unless-stopped
+    volumes:
+      - ./docker_data/garage/garage.toml:/etc/garage.toml
+      - ./docker_data/garage/meta:/var/lib/garage/meta
+      - ./docker_data/garage/data:/var/lib/garage/data
+
+# Сервис для автоматической инициализации Garage
+  garage-init:
+    image: alpine:3.19
+    container_name: photogram_garage_init
+    network_mode: "host"
+    depends_on:
+      - garage
+    environment:
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:?S3_ACCESS_KEY is not set - add it to .env}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:?S3_SECRET_KEY is not set - add it to .env}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:?S3_BUCKET_NAME is not set - add it to .env}
+    volumes:
+      - ./docker_data/garage/garage.toml:/etc/garage.toml
+      - /var/run/docker.sock:/var/run/docker.sock
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        apk add --no-cache docker-cli > /dev/null
+
+        echo "Ждем запуск Garage S3..."
+        until docker exec photogram_garage_s3 /garage status > /dev/null 2>&1; do
+          sleep 1
+        done
+
+        # Проверяем, инициализирован ли уже layout
+        if docker exec photogram_garage_s3 /garage status 2>&1 | grep -q "NO ROLE ASSIGNED"; then
+          echo "Инициализация Layout..."
+          NODE_ID=$$(docker exec photogram_garage_s3 /garage layout status | grep "NO ROLE ASSIGNED" | awk '{print $$1}' | head -n 1)
+          docker exec photogram_garage_s3 /garage layout assign -z dc1 -c 10G $$NODE_ID
+          docker exec photogram_garage_s3 /garage layout apply --version 1
+        fi
+
+        # Импортируем ключ с флагом -n (имя ключа) и --yes (для подтверждения)
+        if ! docker exec photogram_garage_s3 /garage key info app-key > /dev/null 2>&1; then
+          echo "Импорт ключа доступа..."
+          docker exec photogram_garage_s3 /garage key import -n app-key --yes "$$S3_ACCESS_KEY" "$$S3_SECRET_KEY"
+        fi
+
+        # Создаем бакет, если его еще нет
+        if ! docker exec photogram_garage_s3 /garage bucket info "$$S3_BUCKET_NAME" > /dev/null 2>&1; then
+          echo "Создание бакета $$S3_BUCKET_NAME..."
+          docker exec photogram_garage_s3 /garage bucket create "$$S3_BUCKET_NAME"
+        fi
+
+        # Выделяем права ключу ВСЕГДА, даже если бакет уже существовал (идемпотентно)
+        echo "Выдача прав ключу app-key на бакет $$S3_BUCKET_NAME..."
+        docker exec photogram_garage_s3 /garage bucket allow "$$S3_BUCKET_NAME" --read --write --key app-key
+
+        echo "Garage S3 полностью настроен и готов к работе!"
