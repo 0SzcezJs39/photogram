@@ -11,7 +11,7 @@ services:
     ports:
       - "3306:3306"
     volumes:
-      - ./backend/docker_data/mariadb:/var/lib/mysql
+      - ./docker_data/mariadb:/var/lib/mysql
     networks:
       - photogram
     healthcheck:
@@ -26,9 +26,9 @@ services:
     container_name: photogram_garage_s3
     restart: unless-stopped
     volumes:
-      - ./backend/docker_data/garage/garage.toml:/etc/garage.toml
-      - ./backend/docker_data/garage/meta:/var/lib/garage/meta
-      - ./backend/docker_data/garage/data:/var/lib/garage/data
+      - ./docker_data/garage/garage.toml:/etc/garage.toml
+      - ./docker_data/garage/meta:/var/lib/garage/meta
+      - ./docker_data/garage/data:/var/lib/garage/data
     networks:
       - photogram
     ports:
@@ -49,7 +49,7 @@ services:
       S3_SECRET_KEY: ${S3_SECRET_KEY:?S3_SECRET_KEY is not set - add it to .env}
       S3_BUCKET_NAME: ${S3_BUCKET_NAME:?S3_BUCKET_NAME is not set - add it to .env}
     volumes:
-      - ./backend/docker_data/garage/garage.toml:/etc/garage.toml
+      - ./docker_data/garage/garage.toml:/etc/garage.toml
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - photogram

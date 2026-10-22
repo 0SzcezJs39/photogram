@@ -7,8 +7,8 @@ No workspace tooling, no CI, no lint/format/typecheck config anywhere — there 
 
 - `backend/` — Spring Boot 4.1.1, Java 21, Maven wrapper. Package `com.company.photogram` → `web/` (controllers), `service/`, `domain/` (entities + repositories).
 - `frontend/` — Vue 3 + vue-router + Vite 6, plain JS (no TS, no store). `src/auth.js` holds token/auth helpers, `src/router/index.js` routes, `src/components/PhotoFeed.vue` is the feed.
-- `docker-compose.yaml` (root) = full stack (mariadb, garage, backend, frontend). `backend/docker-compose.yaml` = infra only (mariadb + garage), for running Spring Boot on the host.
-- `backend/docker_data/`, `backend/target*`, `frontend/node_modules/`, `frontend/dist/`, `.env` are gitignored — never commit them. `.env.example` IS tracked and lists every required variable.
+- `docker-compose.yaml` (root) = full stack (mariadb, garage, backend, frontend). Инфру без бэкенда можно поднять отдельно: `docker compose up -d mariadb garage`.
+- `docker_data/` (root) = bind-mount с данными инфраструктуры: `mariadb/` → `/var/lib/mysql`, `garage/` → `/etc/garage.toml` + `/var/lib/garage/{meta,data}`. Там же `backend/target*`, `frontend/node_modules/`, `frontend/dist/`, `.env` — всё это gitignored, никогда не коммитить. `.env.example` IS tracked and lists every required variable.
 
 ## Commands (all verified)
 
@@ -24,7 +24,7 @@ cd frontend && npm run dev      # Vite on :5173, proxies /api -> http://localhos
 cd frontend && npm run build    # -> dist/
 ```
 
-Full stack: `docker compose up -d --build` (root). First-time S3 bootstrap: `docker compose --profile init up -d` (one-shot `garage-init` creates key/bucket; idempotent). The `backend/docker-compose.yaml` variant has no profile, so `garage-init` starts with plain `up`.
+Full stack: `docker compose up -d --build` (root). First-time S3 bootstrap: `docker compose --profile init up -d` (one-shot `garage-init` creates key/bucket; idempotent).
 
 There is no lint/format/typecheck command — do not add tooling unless asked.
 

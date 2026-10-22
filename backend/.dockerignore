@@ -1,6 +1,5 @@
  target/
  target.bak/
- docker_data/
  .env
  *.txt
  mvnw

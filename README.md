@@ -110,6 +110,7 @@ npm run build   # сборка в dist/
 backend/    Spring Boot API (web/, service/, domain/)
 frontend/   Vue SPA (components/, views/, router/)
 scripts/    rotate-s3-key.sh — ротация ключа доступа к S3
+docker_data/   данные MariaDB и Garage (bind-mount, gitignored)
 docker-compose.yaml   весь стек: mariadb, garage, backend, frontend
 ts.txt                исходная спецификация
 ```
