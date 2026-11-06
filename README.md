@@ -116,9 +116,19 @@ npm run build   # сборка в dist/
 (`MYSQL_*`, `S3_*`, `JWT_SECRET`) — иначе старт упадёт на нерезолвленных плейсхолдерах.
 ## Структура
 ```
-backend/    Spring Boot API (web/, service/, domain/)
-frontend/   Vue SPA (components/, views/, router/)
-docker_data/   данные MariaDB и Garage (bind-mount, gitignored)
+backend/              Spring Boot API (web/, service/, domain/)
+frontend/
+  index.html          HTML-обёртка, монтирует приложение
+  vite.config.js      dev-сервер и прокси /api → :8082
+  nginx.conf          раздача SPA и прокси /api в проде
+  src/
+    main.js           запуск Vue и подключение роутера
+    App.vue           шапка + место для текущей страницы
+    auth.js           токен, вход, текущий пользователь
+    router.js         маршруты и защита /upload
+    assets/base.css   глобальные стили
+    views/            страницы: PhotosView, LoginView, RegisterView, UploadView
+docker_data/          данные MariaDB и Garage (bind-mount, gitignored)
 docker-compose.yaml   весь стек: mariadb, garage, backend, frontend
 ts.txt                исходная спецификация
 ```

@@ -6,7 +6,7 @@ No workspace tooling, no CI, no lint/format/typecheck config anywhere — there 
 ## Layout
 
 - `backend/` — Spring Boot 4.1.1, Java 21, Maven wrapper. Package `com.company.photogram` → `web/` (controllers), `service/`, `domain/` (entities + repositories).
-- `frontend/` — Vue 3 + vue-router + Vite 6, plain JS (no TS, no store). `src/auth.js` holds token/auth helpers, `src/router/index.js` routes, `src/components/PhotoFeed.vue` is the feed.
+- `frontend/` — Vue 3 + vue-router + Vite 6, plain JS (no TS, no store). `src/auth.js` holds token/auth helpers, `src/router.js` routes, `src/views/PhotosView.vue` is the feed.
 - `docker-compose.yaml` (root) = full stack (mariadb, garage, backend, frontend). Инфру без бэкенда можно поднять отдельно: `docker compose up -d mariadb garage`.
 - `docker_data/` (root) = bind-mount с данными инфраструктуры: `mariadb/` → `/var/lib/mysql`, `garage/` → `/etc/garage.toml` + `/var/lib/garage/{meta,data}`. Там же `backend/target*`, `frontend/node_modules/`, `frontend/dist/`, `.env` — всё это gitignored, никогда не коммитить. `.env.example` IS tracked and lists every required variable.
 
