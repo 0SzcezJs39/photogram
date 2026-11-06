@@ -126,7 +126,7 @@ frontend/
     App.vue           шапка + место для текущей страницы
     auth.js           токен, вход, текущий пользователь
     router.js         маршруты и защита /upload
-    assets/base.css   глобальные стили
+    base.css   глобальные стили
     views/            страницы: PhotosView, LoginView, RegisterView, UploadView
 docker_data/          данные MariaDB и Garage (bind-mount, gitignored)
 docker-compose.yaml   весь стек: mariadb, garage, backend, frontend
