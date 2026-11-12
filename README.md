@@ -1,4 +1,4 @@
-# Photogram
+# Photogram [![CI](https://github.com/0SzcezJs39/photogram/actions/workflows/ci.yml/badge.svg)](https://github.com/0SzcezJs39/photogram/actions/workflows/ci.yml)
 Фотогалерея с хэштегами и лайками: зарегистрированные пользователи загружают фотографии,
 все видят общую ленту, зарегистрированные ставят лайки и видят, кто именно поставил лайк.
 Авторизация stateless — JWT.
