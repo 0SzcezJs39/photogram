@@ -1,0 +1,57 @@
+name: CI
+
+# Когда запускать workflow
+on:
+  push:
+    branches: [main]   # каждый push в main
+  pull_request:        # любой pull request
+  workflow_dispatch:   # кнопка "Run workflow" вручную в GitHub
+
+# Минимальные права токена: только чтение репозитория
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend # все run-команды выполняются из backend/
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4  # клонирует репозиторий на виртуалку
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin    # OpenJDK от Eclipse Temurin, как в Dockerfile
+          java-version: '21'
+          cache: maven             # кэшировать ~/.m2 между запусками
+
+      - name: Run unit tests
+        # Запускаем все тесты, кроме contextLoads: ему нужны MariaDB/S3/env
+        run: ./mvnw -B -Dtest='!PhotogramApplicationTests' test
+
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # как в frontend/Dockerfile
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci                  # чистая установка зависимостей строго по package-lock.json (точные версии, без изменения lock-файла). Аналог npm install, но для CI.
+
+      - name: Build
+        run: npm run build           # запускает скрипт build из package.json, то есть vite build: собирает фронтенд в frontend/dist/
