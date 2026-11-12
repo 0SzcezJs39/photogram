@@ -10,6 +10,9 @@ import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
+/**
+ * Загружает пользователя из БД для проверки логина/пароля Spring Security.
+ */
 @Service
 public class UserDetailsServiceImpl implements UserDetailsService {
     private final AppUserRepository repo;
@@ -18,6 +21,13 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         this.repo = repo;
     }
 
+    /**
+     * Ищет пользователя по логину.
+     *
+     * @param username логин
+     * @return данные пользователя для Spring Security
+     * @throws UsernameNotFoundException если пользователь не найден
+     */
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         Optional<AppUser> user = repo.findByUsername(username);

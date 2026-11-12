@@ -10,6 +10,9 @@ import software.amazon.awssdk.services.s3.S3Client;
 
 import java.net.URI;
 
+/**
+ * Конфигурация S3-клиента для работы с Garage (S3-совместимое хранилище).
+ */
 @Configuration
 public class S3Config {
     @Value("${aws.s3.region}")
@@ -24,6 +27,11 @@ public class S3Config {
     @Value("${aws.s3.secret-key}")
     private String secretKey;
 
+    /**
+     * Создаёт клиент S3 с endpoint Garage, path-style доступом и статическими ключами.
+     *
+     * @return настроенный {@link S3Client}
+     */
     @Bean
     public S3Client s3Client() {
         return S3Client.builder()

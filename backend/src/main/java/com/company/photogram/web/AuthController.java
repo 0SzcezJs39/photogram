@@ -16,6 +16,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
+/**
+ * Регистрация и вход; при успешном входе выдаёт JWT.
+ */
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
@@ -34,8 +37,17 @@ public class AuthController {
         this.passwordEncoder = passwordEncoder;
     }
 
+    /**
+     * Тело запроса для логина и регистрации.
+     */
     public record Credentials(String username, String password) {}
 
+    /**
+     * Проверяет логин/пароль и выдаёт JWT.
+     *
+     * @param creds учётные данные
+     * @return токен и логин либо ошибку 400/401
+     */
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Credentials creds) {
         if (creds.username() == null || creds.password() == null) {
@@ -52,6 +64,12 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("token", token, "username", creds.username()));
     }
 
+    /**
+     * Создаёт пользователя с BCrypt-хэшем пароля.
+     *
+     * @param creds учётные данные
+     * @return логин созданного пользователя либо ошибку 400/409
+     */
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody Credentials creds) {
         if (creds.username() == null || creds.username().isBlank()

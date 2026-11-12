@@ -6,10 +6,18 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 
+/**
+ * Точка входа Spring Boot-приложения Photogram.
+ */
 @SpringBootApplication
 public class PhotogramApplication {
 	private static final Logger logger = LoggerFactory.getLogger(PhotogramApplication.class);
 
+	/**
+	 * Запускает приложение и логирует фактический порт.
+	 *
+	 * @param args аргументы командной строки
+	 */
 	public static void main(String[] args) {
 		ConfigurableApplicationContext context = SpringApplication.run(PhotogramApplication.class, args);
 		String port = context.getEnvironment().getProperty("local.server.port");

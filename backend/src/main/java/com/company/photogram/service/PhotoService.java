@@ -20,6 +20,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Бизнес-логика работы с фото: загрузка в S3, чтение байтов, лайки и теги.
+ */
 @Service
 public class PhotoService {
     private final S3Client s3Client;
@@ -33,17 +36,24 @@ public class PhotoService {
         this.photoMetadataRepository = photoMetadataRepository;
     }
 
-    // для REST
+    /**
+     * Без тегов.
+     */
     public PhotoMetadata uploadPhoto(MultipartFile file, AppUser owner) throws IOException {
         return uploadPhoto(file, owner, List.of());
     }
 
+    /**
+     * Загружает фото с тегами в S3 и сохраняет метаданные в БД.
+     */
     public PhotoMetadata uploadPhoto(MultipartFile file, AppUser owner, List<String> tags) throws IOException {
         return doUpload(file.getOriginalFilename(), file.getContentType(),
                 file.getSize(), file.getBytes(), owner, tags);
     }
 
-    // для файла с диска (для curl) (потом уберу)
+    /**
+     * Загружает фото из локального файла (удобно для отладки через curl).
+     */
     public PhotoMetadata uploadPhoto(Path file, AppUser owner) throws IOException {
         String contentType = Files.probeContentType(file);
 //        if (contentType == null) contentType = "image/jpeg";
@@ -51,6 +61,9 @@ public class PhotoService {
                 Files.size(file), Files.readAllBytes(file), owner, List.of());
     }
 
+    /**
+     * Общая реализация загрузки: уникальный ключ, объект в S3, запись в БД.
+     */
     private PhotoMetadata doUpload(String originalFilename, String contentType,
                                    long sizeBytes, byte[] bytes, AppUser owner, List<String> tags) {
         // 1. Уникальный ключ в S3, чтобы не перезаписывать совпадающие имена
@@ -64,7 +77,7 @@ public class PhotoService {
                 .build();
         s3Client.putObject(putObjectRequest, RequestBody.fromBytes(bytes));
 
-        // 3. Метаданные → MariaDB (fileName — оригинальное имя, s3Key — ключ в хранилище)
+        // 3. Отправляем метаданные в MariaDB (fileName — оригинальное имя, s3Key — ключ в хранилище)
         PhotoMetadata metadata = new PhotoMetadata(
                 originalFilename,
                 s3Key,
@@ -77,7 +90,13 @@ public class PhotoService {
         return photoMetadataRepository.save(metadata);
     }
 
-    // Отдаём содержимое объекта из S3 для проксирования через backend
+    /**
+     * Загружает байты фото из S3 для проксирования через backend.
+     *
+     * @param photoId идентификатор фото
+     * @return MIME-тип и содержимое файла
+     * @throws ResponseStatusException 404, если фото нет
+     */
     public PhotoContent loadContent(Long photoId) {
         PhotoMetadata photo = photoMetadataRepository.findById(photoId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Фото не найдено: " + photoId));
@@ -86,9 +105,19 @@ public class PhotoService {
         return new PhotoContent(photo.getContentType(), bytes);
     }
 
+    /**
+     * Содержимое фото, готовое к отдаче HTTP-клиенту.
+     */
     public record PhotoContent(String contentType, byte[] bytes) {}
 
-    // потому что метод делает несколько операций с БД как одно целое
+    /**
+     * Ставит лайк; повторный лайк игнорируется.
+     *
+     * @param photoId идентификатор фото
+     * @param user    пользователь, ставящий лайк
+     * @return актуальные метаданные фото
+     * @throws ResponseStatusException 404, если фото нет
+     */
     @Transactional
     public PhotoMetadata likePhoto(Long photoId, AppUser user) {
         PhotoMetadata photo = photoMetadataRepository.findById(photoId)
@@ -101,6 +130,14 @@ public class PhotoService {
         return photo;
     }
 
+    /**
+     * Убирает лайк; если лайка не было — ничего не меняет.
+     *
+     * @param photoId идентификатор фото
+     * @param user    пользователь, убирающий лайк
+     * @return актуальные метаданные фото
+     * @throws ResponseStatusException 404, если фото нет
+     */
     @Transactional
     public PhotoMetadata unlikePhoto(Long photoId, AppUser user) {
         PhotoMetadata photo = photoMetadataRepository.findById(photoId)
@@ -113,6 +150,15 @@ public class PhotoService {
         return photo;
     }
 
+    /**
+     * Заменяет теги фото; доступно только владельцу.
+     *
+     * @param photoId идентификатор фото
+     * @param tags    новые теги
+     * @param user    текущий пользователь
+     * @return актуальные метаданные фото
+     * @throws ResponseStatusException 404, если фото нет, 403 если не владелец
+     */
     @Transactional
     public PhotoMetadata updateTags(Long photoId, List<String> tags, AppUser user) {
         PhotoMetadata photo = photoMetadataRepository.findById(photoId)

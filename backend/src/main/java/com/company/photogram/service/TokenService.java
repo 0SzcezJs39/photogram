@@ -26,6 +26,12 @@ public class TokenService {
         this.jwtEncoder = jwtEncoder;
     }
 
+    /**
+     * Выпускает подписанный JWT для пользователя.
+     *
+     * @param username логин (кладётся в claim {@code sub})
+     * @return строка токена
+     */
     public String issueToken(String username) {
         Instant now = Instant.now();
         JwtClaimsSet claims = JwtClaimsSet.builder()

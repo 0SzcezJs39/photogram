@@ -21,6 +21,9 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.StreamSupport;
 
+/**
+ * HTTP-эндпоинты ленты: список, картинки, загрузка, лайки и теги.
+ */
 @RestController
 public class PhotoController {
     private final PhotoMetadataRepository repository;
@@ -33,7 +36,9 @@ public class PhotoController {
         this.appUserRepository = appUserRepository;
     }
 
-    // Ответ клиенту: без внутреннего списка id лайкнувших, но с флагом liked для текущего пользователя
+    /**
+     * DTO ответа: скрывает список лайкнувших и добавляет URL картинки и флаг {@code liked}.
+     */
     public record PhotoResponse(
             Long id,
             String fileName,
@@ -46,6 +51,13 @@ public class PhotoController {
             long likeCount,
             boolean liked
     ) {
+        /**
+         * Собирает DTO из сущности с учётом текущего пользователя.
+         *
+         * @param p             метаданные фото
+         * @param currentUserId id текущего пользователя или {@code null}
+         * @return ответ для клиента
+         */
         static PhotoResponse of(PhotoMetadata p, Long currentUserId) {
             boolean liked = currentUserId != null && p.getLikedUserIds().contains(currentUserId);
             return new PhotoResponse(
@@ -56,7 +68,12 @@ public class PhotoController {
         }
     }
 
-    // Публичная отдача байтов картинки через backend (проксирует S3/Garage, скрывая приватный ключ)
+    /**
+     * Публично отдаёт байты картинки, проксируя их из S3.
+     *
+     * @param id идентификатор фото
+     * @return содержимое файла с его MIME-типом
+     */
     @GetMapping("/photos/{id}/image")
     public ResponseEntity<byte[]> getImage(@PathVariable Long id) {
         PhotoService.PhotoContent content = photoService.loadContent(id);
@@ -66,11 +83,21 @@ public class PhotoController {
         return ResponseEntity.ok().contentType(mediaType).body(content.bytes());
     }
 
+    /**
+     * Отладочная заглушка для проверки доступности API.
+     *
+     * @return тестовая строка
+     */
     @GetMapping("/test")
     public String getTest() { return "1243"; }
 
-    // Лента публичная: если JWT нет (jwt == null) — просто liked=false
-    // Необязательный фильтр по тегу: /photos?tag=#природа (ведущий '#' отбрасывается)
+    /**
+     * Публичная лента фото с сортировкой по дате и необязательным фильтром по тегу.
+     *
+     * @param tag тег (ведущий {@code #} отбрасывается)
+     * @param jwt токен текущего запроса или {@code null} для анонимного доступа
+     * @return список фото; без JWT флаг {@code liked} всегда {@code false}
+     */
     @GetMapping("/photos")
     public List<PhotoResponse> getPhotos(
             @RequestParam(value = "tag", required = false) String tag,
@@ -91,13 +118,25 @@ public class PhotoController {
                 .toList();
     }
 
-    // Убираем ведущий '#', пробелы и регистр не учитываем при поиске
+    /**
+     * Убирает ведущие {@code #} и пробелы у тега.
+     *
+     * @param tag исходный тег
+     * @return нормализованный тег или пустая строка
+     */
     private String normalizeTag(String tag) {
         return tag == null ? "" : tag.trim().replaceFirst("^#+", "").trim();
     }
 
-    // @RequestParam("file") MultipartFile file — перехватывает файл из Multipart form-data
-    // tags — необязательные хэштеги: можно передать несколько полей "tags" в форме
+    /**
+     * Принимает multipart-файл с необязательными тегами и загружает его.
+     *
+     * @param file файл из формы
+     * @param tags теги (можно несколько полей {@code tags})
+     * @param jwt  токен текущего пользователя
+     * @return метаданные загруженного фото
+     * @throws IOException при чтении файла
+     */
     @PostMapping("/upload")
     @ResponseStatus(HttpStatus.CREATED) // Указываем код 201 через аннотацию
     public PhotoResponse uploadFile(
@@ -109,7 +148,12 @@ public class PhotoController {
         return PhotoResponse.of(photoService.uploadPhoto(file, owner, normalizeTags(tags)), owner.getId());
     }
 
-    // Кто поставил лайк: доступно только авторизованным (любой эндпоинт кроме GET /photos требует JWT)
+    /**
+     * Возвращает логины пользователей, лайкнувших фото (только с JWT).
+     *
+     * @param id идентификатор фото
+     * @return список логинов
+     */
     @GetMapping("/photos/{id}/likes")
     public List<String> getLikers(@PathVariable Long id) {
         PhotoMetadata photo = repository.findById(id)
@@ -119,6 +163,13 @@ public class PhotoController {
                 .toList();
     }
 
+    /**
+     * Ставит лайк текущим пользователем.
+     *
+     * @param id  идентификатор фото
+     * @param jwt токен текущего пользователя
+     * @return обновлённое фото
+     */
     @PostMapping("/photos/{id}/like")
     public PhotoResponse likePhoto(
             @PathVariable Long id,
@@ -128,6 +179,13 @@ public class PhotoController {
         return PhotoResponse.of(photoService.likePhoto(id, liker), liker.getId());
     }
 
+    /**
+     * Убирает лайк текущего пользователя.
+     *
+     * @param id  идентификатор фото
+     * @param jwt токен текущего пользователя
+     * @return обновлённое фото
+     */
     @DeleteMapping("/photos/{id}/like")
     public PhotoResponse unlikePhoto(
             @PathVariable Long id,
@@ -137,6 +195,14 @@ public class PhotoController {
         return PhotoResponse.of(photoService.unlikePhoto(id, liker), liker.getId());
     }
 
+    /**
+     * Полностью заменяет теги фото; разрешено только владельцу.
+     *
+     * @param id   идентификатор фото
+     * @param tags новые теги
+     * @param jwt  токен текущего пользователя
+     * @return обновлённое фото
+     */
     @PutMapping("/photos/{id}/tags")
     public PhotoResponse updateTags(
             @PathVariable Long id,
@@ -148,19 +214,35 @@ public class PhotoController {
         return PhotoResponse.of(photoService.updateTags(id, tags, owner), owner.getId());
     }
 
-    // Текущий пользователь из БД, при необходимости создаём запись (как было при загрузке/лайке)
+    /**
+     * Находит пользователя по JWT, при отсутствии создаёт запись в БД.
+     *
+     * @param jwt токен текущего запроса
+     * @return пользователь
+     */
     private AppUser currentUser(Jwt jwt) {
         String username = jwt.getSubject();
         return appUserRepository.findByUsername(username)
                 .orElseGet(() -> appUserRepository.save(new AppUser(username, UUID.randomUUID().toString())));
     }
 
+    /**
+     * Возвращает id текущего пользователя или {@code null} для анонимного запроса.
+     *
+     * @param jwt токен текущего запроса
+     * @return id пользователя или {@code null}
+     */
     private Long currentUserIdOrNull(Jwt jwt) {
         if (jwt == null) return null;
         return appUserRepository.findByUsername(jwt.getSubject()).map(AppUser::getId).orElse(null);
     }
 
-    // Убираем ведущий '#', пробелы, пустые значения и дубликаты (без учёта регистра)
+    /**
+     * Нормализует теги: убирает {@code #} и пробелы, отбрасывает пустые и дубликаты.
+     *
+     * @param tags исходные теги
+     * @return очищенный список тегов
+     */
     private List<String> normalizeTags(List<String> tags) {
         if (tags == null) return List.of();
         return tags.stream()

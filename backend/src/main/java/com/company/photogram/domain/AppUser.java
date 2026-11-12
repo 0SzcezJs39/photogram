@@ -3,6 +3,9 @@ package com.company.photogram.domain;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
+/**
+ * Пользователь приложения
+ */
 @Entity
 public class AppUser {
     @Id

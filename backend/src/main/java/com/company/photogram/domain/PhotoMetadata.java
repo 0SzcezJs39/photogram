@@ -7,6 +7,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Метаданные фотографии
+ */
 @Entity
 public class PhotoMetadata {
     @Id
@@ -30,6 +33,17 @@ public class PhotoMetadata {
     // Если убрать приложение не запускается
     public PhotoMetadata() { this.createdAt = LocalDateTime.now(); }
     
+    /**
+     * Создаёт метаданные загруженного фото.
+     *
+     * @param fileName    оригинальное имя файла
+     * @param s3Key       ключ объекта в хранилище
+     * @param contentType MIME-тип
+     * @param sizeBytes   размер в байтах
+     * @param createdAt   время создания
+     * @param tags        теги
+     * @param owner       владелец
+     */
     public PhotoMetadata(String fileName, String s3Key, String contentType, Long sizeBytes, LocalDateTime createdAt, List<String> tags, AppUser owner) {
         this.fileName = fileName;
         this.s3Key = s3Key;
@@ -49,6 +63,12 @@ public class PhotoMetadata {
     public List<String> getTags() { return tags; }
     public AppUser getOwner() { return owner; }
     public Set<Long> getLikedUserIds() { return likedUserIds; }
+
+    /**
+     * Возвращает количество лайков.
+     *
+     * @return число уникальных пользователей, лайкнувших фото
+     */
     public Long getLikeCount() { return (long) likedUserIds.size(); }
 
     public void setId(Long id) { this.id = id; }

@@ -27,9 +27,19 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 
 
+/**
+ * Настройки безопасности: stateless-режим, правила доступа и HS256 JWT.
+ */
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+    /**
+     * Определяет публичные эндпоинты и требует JWT для всех остальных.
+     *
+     * @param http конфигуратор цепочки фильтров Spring Security
+     * @return собранная цепочка фильтров
+     * @throws Exception при ошибке конфигурации
+     */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
@@ -48,10 +58,20 @@ public class SecurityConfig {
     @Value("${app.jwt.secret}")
     private String jwtSecret;
 
+    /**
+     * Превращает секрет из конфигурации в ключ HMAC-SHA256.
+     *
+     * @return ключ для подписи и проверки JWT
+     */
     private SecretKey jwtSecretKey() {
         return new SecretKeySpec(jwtSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
     }
 
+    /**
+     * Декодер для проверки входящих Bearer-токенов.
+     *
+     * @return декодер JWT на симметричном ключе
+     */
     @Bean
     public JwtDecoder jwtDecoder() {
         return NimbusJwtDecoder.withSecretKey(jwtSecretKey())
@@ -59,11 +79,23 @@ public class SecurityConfig {
                 .build();
     }
 
+    /**
+     * Кодировщик для выпуска JWT при логине.
+     *
+     * @return кодировщик JWT на симметричном ключе
+     */
     @Bean
     public JwtEncoder jwtEncoder() {
         return new NimbusJwtEncoder(new ImmutableSecret<>(jwtSecretKey()));
     }
 
+    /**
+     * Собирает менеджер аутентификации, проверяющий логин/пароль по БД.
+     *
+     * @param userDetailsService загрузчик пользователей из БД
+     * @param passwordEncoder    кодировщик паролей
+     * @return менеджер аутентификации
+     */
     @Bean
     public AuthenticationManager authenticationManager(UserDetailsService userDetailsService,
                                                        PasswordEncoder passwordEncoder) {
@@ -72,6 +104,11 @@ public class SecurityConfig {
         return new ProviderManager(provider);
     }
 
+    /**
+     * Возвращает BCrypt-кодировщик паролей.
+     *
+     * @return кодировщик паролей
+     */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
